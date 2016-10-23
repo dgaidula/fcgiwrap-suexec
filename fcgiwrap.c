@@ -1025,7 +1025,7 @@ int main(int argc, char **argv)
 					"  -f\t\t\tSend CGI's stderr over FastCGI\n"
 					"  -c <number>\t\tNumber of processes to prefork\n"
 					"  -u <use_suexec>\tUse suexec like behavior. Change to owner uid and gid before executing. (See https://httpd.apache.org/docs/2.4/suexec.html)\n"
-					"  -uD <with_user_dir>\tLimit scripts to subdirectory under users' home directories. (See --with-suexec-userdir https://httpd.apache.org/docs/2.4/suexec.html#install)\n"
+					"  -d <with_user_dir>\tLimit scripts to subdirectory under users' home directories. (See --with-suexec-userdir https://httpd.apache.org/docs/2.4/suexec.html#install)\n"
 					"  -s <socket_url>\tSocket to bind to (say -s help for help)\n"
 					"  -h\t\t\tShow this help message and exit\n"
 					"  -p <path>\t\tRestrict execution to this script. (repeated options will be merged)\n"
@@ -1041,7 +1041,7 @@ int main(int argc, char **argv)
 				}
 				use_suexec = 1;
 				break;
-			case 'uD':
+			case 'd':
 				if (!use_suexec) {
 					fprintf(stderr, "Option -%c requires option 'u'.\n", optopt);
 					return 1;
