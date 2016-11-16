@@ -1050,7 +1050,7 @@ int main(int argc, char **argv)
 	int fd = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "c:hufs:p:")) != -1) {
+	while ((c = getopt(argc, argv, "c:hgufs:p:")) != -1) {
 		switch (c) {
 			case 'f':
 				stderr_to_fastcgi++;
