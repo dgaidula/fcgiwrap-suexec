@@ -413,7 +413,7 @@ static void print_time_suexec_log(void)
 static int check_suexec(const char* const cgi_filename, struct stat *ls)
 {
 	int ngroups;
-	gid_t *groups;
+	int *groups;
 	struct stat pls;
 	struct passwd *user;
 	struct group *group;
