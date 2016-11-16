@@ -87,6 +87,7 @@ static const char * blacklisted_env_vars[] = {
 
 static int stderr_to_fastcgi = 0;
 static int use_suexec = 0;
+static int su_group_check = 0;
 static FILE* suexec_log;
 
 
@@ -390,6 +391,15 @@ static int check_file_perms(const char *path)
 	}
 }
 
+bool isvalueinarray(int val, int *arr, int size){
+    int i;
+    for (i=0; i < size; i++) {
+        if (arr[i] == val)
+            return true;
+    }
+    return false;
+}
+
 static void print_time_suexec_log(void)
 {
 	time_t rawtime;
@@ -402,6 +412,8 @@ static void print_time_suexec_log(void)
 
 static int check_suexec(const char* const cgi_filename, struct stat *ls)
 {
+	int ngroups;
+	gid_t *groups;
 	struct stat pls;
 	struct passwd *user;
 	struct group *group;
@@ -542,12 +554,35 @@ static int check_suexec(const char* const cgi_filename, struct stat *ls)
 		fflush(suexec_log);
 		goto err_parent;
 	}
-	if (pls.st_gid != ls->st_gid || pls.st_uid != ls->st_uid) {
+	if (pls.st_gid != ls->st_gid || (!su_group_check && pls.st_uid != ls->st_uid)) {
 		print_time_suexec_log();
 		fprintf(suexec_log, "%s is owned by user %d group %d. Expected user owner %d group owner %d\n", cgi_filename, pls.st_uid, pls.st_gid, ls->st_uid, ls->st_gid);
 		fflush(suexec_log);
 		goto err_parent;
 	}
+	if(su_group_check){
+		//verifies that user is a member of the parent group
+		ngroups = 10;
+		groups = malloc(ngroups * sizeof (gid_t));
+		if (groups == NULL) {
+		   perror("malloc");
+		   exit(EXIT_FAILURE);
+		}
+		if(getgrouplist(user->pw_name, user->pw_gid, groups, &ngroups) == -1) {
+			print_time_suexec_log();
+			fprintf(suexec_log, "getgrouplist() returned -1; ngroups = %d\n", ngroups);
+			fflush(suexec_log);
+			goto err_parent;
+		}
+		if(!isvalueinarray(pls.st_gid,groups,ngroups)){
+			print_time_suexec_log();
+			fprintf(suexec_log, "User %d is not in group %d.\n", user->pw_name, pls.st_gid);
+			fflush(suexec_log);
+			goto err_parent;
+		}
+
+	}
+
     *p = '/';
 
 	return 0;
@@ -1026,6 +1061,7 @@ int main(int argc, char **argv)
 					"Options are:\n"
 					"  -f\t\t\tSend CGI's stderr over FastCGI\n"
 					"  -c <number>\t\tNumber of processes to prefork\n"
+					"  -g <group_check>\tChecks that user is member of parent directory. Useful for multi-users who must upload to a common cgi directory.\n"
 					"  -u <use_suexec>\tUse suexec like behavior. Change to owner uid and gid before executing. (See https://httpd.apache.org/docs/2.4/suexec.html)\n"
 					"  -s <socket_url>\tSocket to bind to (say -s help for help)\n"
 					"  -h\t\t\tShow this help message and exit\n"
@@ -1041,6 +1077,13 @@ int main(int argc, char **argv)
 					return 1;
 				}
 				use_suexec = 1;
+				break;
+			case 'g':
+				if (!use_suexec) {
+					fprintf(stderr, "Option -%c requires option 'u'.\n", optopt);
+					return 1;
+				}
+				su_group_check = 1;
 				break;
 			case 'c':
 				nchildren = atoi(optarg);
