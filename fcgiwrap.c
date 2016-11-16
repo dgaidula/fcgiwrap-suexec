@@ -87,7 +87,6 @@ static const char * blacklisted_env_vars[] = {
 
 static int stderr_to_fastcgi = 0;
 static int use_suexec = 0;
-static int with_user_dir = 0;
 static FILE* suexec_log;
 
 
@@ -483,26 +482,19 @@ static int check_suexec(const char* const cgi_filename, struct stat *ls)
 		len_filename = strlen(cgi_filename);
 		len_userdir = strlen(user->pw_dir);
 
-		if (len_docroot > len_filename) {
+		if (len_docroot > len_filename || strncmp(p, cgi_filename, len_docroot) != 0) {
 			print_time_suexec_log();
 			fprintf(suexec_log, "%s is not located in %s\n", cgi_filename, p);
 			fflush(suexec_log);
-			return -EACCES;
-		} else if (strncmp(p, cgi_filename, len_docroot) != 0) {
-			print_time_suexec_log();
-			fprintf(suexec_log, "%s is not located in %s\n", cgi_filename, p);
-			fflush(suexec_log);
-			return -EACCES;
-		} else if ( with_user_dir && len_userdir > len_filename) { /* Is the target directory within the user's directory */
-			print_time_suexec_log();
-			fprintf(suexec_log, "%s is not located in the user's directory\n", cgi_filename);
-			fflush(suexec_log);
-			return -EACCES;
-		} else if (with_user_dir && strncmp(user->pw_dir, cgi_filename, len_userdir) != 0) {
-			print_time_suexec_log();
-			fprintf(suexec_log, "%s is not located in the user's directory\n", cgi_filename);
-			fflush(suexec_log);
-			return -EACCES;
+			if ( len_userdir > len_filename || strncmp(user->pw_dir, cgi_filename, len_userdir) != 0) {
+				/* Is the target directory within the user's directory */
+				/* target directory must be either document root or user's directory */
+				/* suexec 2.4 point 13 */
+				print_time_suexec_log();
+				fprintf(suexec_log, "%s is not located in the user's directory\n", cgi_filename);
+				fflush(suexec_log);
+				return -EACCES;
+			}
 		}
 	} else {
 		/* DOCUMENT_ROOT must be set to use suexec */
@@ -1035,7 +1027,6 @@ int main(int argc, char **argv)
 					"  -f\t\t\tSend CGI's stderr over FastCGI\n"
 					"  -c <number>\t\tNumber of processes to prefork\n"
 					"  -u <use_suexec>\tUse suexec like behavior. Change to owner uid and gid before executing. (See https://httpd.apache.org/docs/2.4/suexec.html)\n"
-					"  -d <with_user_dir>\tLimit scripts to subdirectory under users' home directories. (See --with-suexec-userdir https://httpd.apache.org/docs/2.4/suexec.html#install)\n"
 					"  -s <socket_url>\tSocket to bind to (say -s help for help)\n"
 					"  -h\t\t\tShow this help message and exit\n"
 					"  -p <path>\t\tRestrict execution to this script. (repeated options will be merged)\n"
@@ -1050,13 +1041,6 @@ int main(int argc, char **argv)
 					return 1;
 				}
 				use_suexec = 1;
-				break;
-			case 'd':
-				if (!use_suexec) {
-					fprintf(stderr, "Option -%c requires option 'u'.\n", optopt);
-					return 1;
-				}
-				with_user_dir = 1;
 				break;
 			case 'c':
 				nchildren = atoi(optarg);
