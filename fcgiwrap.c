@@ -562,7 +562,7 @@ static int check_suexec(const char* const cgi_filename, struct stat *ls)
 	}
 	if(su_group_check){
 		//verifies that user is a member of the parent group
-		ngroups = 10;
+		ngroups = 3;
 		groups = malloc(ngroups * sizeof (gid_t));
 		if (groups == NULL) {
 		   perror("malloc");
