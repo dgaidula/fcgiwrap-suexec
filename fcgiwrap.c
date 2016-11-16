@@ -413,7 +413,7 @@ static void print_time_suexec_log(void)
 static int check_suexec(const char* const cgi_filename, struct stat *ls)
 {
 	int ngroups;
-	int *groups;
+	gid_t *groups;
 	struct stat pls;
 	struct passwd *user;
 	struct group *group;
@@ -574,7 +574,7 @@ static int check_suexec(const char* const cgi_filename, struct stat *ls)
 			fflush(suexec_log);
 			goto err_parent;
 		}
-		if(!isvalueinarray(pls.st_gid, groups, ngroups)){
+		if(!isvalueinarray(pls.st_gid, (int*)groups, ngroups)){
 			print_time_suexec_log();
 			fprintf(suexec_log, "User %s is not in group %d.\n", user->pw_name, pls.st_gid);
 			fflush(suexec_log);
